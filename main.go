@@ -16,31 +16,28 @@ func init() {
 }
 
 func main() {
-	r := gin.Default() //gin engin with default middleware
+	r := gin.Default()
+	r.Use(gin.Logger())
 
+	//user routes
+	r.POST("/signup", controllers.UserSignup)
+	r.POST("/login", controllers.UserLogin)
+	r.GET("/validate", middleware.RequireAuth, controllers.Validate)
+	r.GET("/logout", controllers.UserLogout)
+
+	//admin routes
+	r.POST("/Admin/login", controllers.Loginadmin)
+	r.GET("/Admin/Validate", middleware.AdminAuth, controllers.AdminValidate)
+	r.POST("/Admin/logout", controllers.AdminLogout)
+
+	//Create Admin DELETE AFTER SAVE
 	r.POST("/adminCreate", helper.AdminCreate)
 
-	r.POST("/signup", controllers.UserSignup)
-
-	r.POST("/login", controllers.UserLogin)
-
-	r.GET("/validate", middleware.RequireAuth, controllers.Validate)
-
-	r.PATCH("/updateuser", middleware.RequireAuth, controllers.EditUser)
-
-	r.POST("/logout", controllers.UserLogout)
-
-	r.POST("/Adminlogin", controllers.Loginadmin)
-
-	r.GET("/AdminValidate", middleware.AdminAuth, controllers.AdminValidate)
-
-	r.POST("/Adminlogout", controllers.AdminLogout)
-
-	r.GET("/findall", middleware.AdminAuth, controllers.FindAll)
-
-	r.POST("/finduser", middleware.AdminAuth, controllers.FindUser)
-
-	r.DELETE("/deleteuser", middleware.AdminAuth, controllers.DeleteUser)
+	//CRUD operation
+	r.GET("admin/findall", middleware.AdminAuth, controllers.FindAll)
+	r.GET("admin/finduser", middleware.AdminAuth, controllers.FindUser)
+	r.PATCH("admin/updateuser", middleware.AdminAuth, controllers.EditUser)
+	r.DELETE("admin/deleteuser", middleware.AdminAuth, controllers.DeleteUser)
 
 	r.Run() // listen and serve on 0.0.0.0:8080 start the server on localhost:8080
 

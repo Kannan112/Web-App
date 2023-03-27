@@ -13,15 +13,19 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+//---------------------------------------------------AdminLogin--------------------------------------------------
+
 func Loginadmin(c *gin.Context) {
 
-	//helper.AdminCreate(c)
+	//1.helper.AdminCreate(c)
 
 	var body struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email    string
+		Password string
 	}
-	//bind req body to a struct or map common in json
+
+	//2.bind req body to a struct or map common in json
+
 	if c.Bind(&body) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "failed to read body",
@@ -29,8 +33,12 @@ func Loginadmin(c *gin.Context) {
 		return
 	}
 
+	//3.check the user is registered or not
+
 	var admin models.Admin
 	initializers.DB.Find(&admin, "email= ?", body.Email)
+
+	//4.if no user is available
 
 	if admin.ID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -38,7 +46,7 @@ func Loginadmin(c *gin.Context) {
 		})
 		return
 	}
-	//compare sent in pass with hash pass
+	//5.compare sent in pass with hash pass
 
 	err := bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(body.Password))
 
@@ -49,12 +57,13 @@ func Loginadmin(c *gin.Context) {
 		return
 	}
 
-	//generate jwt
+	//6.generate jwt
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": admin.ID,
 		"exp": time.Now().Add(time.Second * 2 * 30).Unix(),
 	})
-	//Sign and get the complete encoded token as a string useing secrete
+
+	//7.Sign and get the complete encoded token as a string using secrete
 
 	Ab := os.Getenv("SECRET")
 
@@ -67,7 +76,7 @@ func Loginadmin(c *gin.Context) {
 		})
 		return
 	}
-	//sendind it back to user cookie
+	//8.sendind it back to user cookie
 
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("Auth", tokenString, 2*30, "", "", false, true)
@@ -84,9 +93,10 @@ func AdminValidate(c *gin.Context) {
 		"massage": admin,
 	})
 }
-func AdminLogout(c *gin.Context) {
 
-	//c.Header("Cache-Control", "no-cache,no-store,must-revalidate")
+//------------------------------------------------AdminLogout---------------------------------------------------
+
+func AdminLogout(c *gin.Context) {
 
 	tokenString, err := c.Cookie("Auth")
 
@@ -125,6 +135,8 @@ func FindAll(c *gin.Context) {
 
 }
 
+//-------------------------------------------------Find_Users-------------------------------------------------
+
 func FindUser(c *gin.Context) {
 
 	//geting username and email
@@ -133,20 +145,20 @@ func FindUser(c *gin.Context) {
 		Email string `json:"email"`
 	}
 
-	if c.Bind(&body) != nil {
+	if err := c.BindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "failed to read body",
 		})
 		return
 	}
 
-	fmt.Println("bind", body)
+	fmt.Println("bind", body.Email)
 
 	var user models.User
 	initializers.DB.Where(" email = ?", body.Email).Find(&user)
 	if user.ID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "no user found",
+			"error": "failed to find the user",
 		})
 		return
 	} else {
@@ -156,6 +168,8 @@ func FindUser(c *gin.Context) {
 	}
 
 }
+
+//---------------------------------------------------DELETE_USER---------------------------------------------
 
 func DeleteUser(c *gin.Context) {
 	var body struct {
@@ -177,6 +191,39 @@ func DeleteUser(c *gin.Context) {
 	initializers.DB.Exec("DELETE FROM users WHERE name = $1 AND email = $2", body.Name, body.Email)
 	c.JSON(http.StatusOK, gin.H{
 		"message": "user deleted",
+	})
+
+}
+
+// --------------------------------------------------Edit_User-------------------------------------------------
+func EditUser(c *gin.Context) {
+	var body struct {
+		Email    string
+		Password string
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "failed to hash password",
+		})
+		return
+	}
+
+	user := models.User{Password: string(hash)}
+
+	result := initializers.DB.Model(&user).Where("email=?", body.Email).Update("password", string(hash))
+
+	if result.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "failed to update password",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "successfully changed password",
 	})
 
 }

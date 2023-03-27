@@ -14,8 +14,12 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+//_______________________________________Function UserSignup________________________________________
+
 func UserSignup(c *gin.Context) {
-	//get the email and the pass off req body
+
+	//1.get the email and the pass off req body
+
 	var body struct {
 		Name     string
 		Email    string
@@ -30,7 +34,7 @@ func UserSignup(c *gin.Context) {
 
 	fmt.Println(body)
 
-	//hash the password
+	//2.hash the password
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
 
@@ -41,6 +45,7 @@ func UserSignup(c *gin.Context) {
 
 		return
 	}
+	//3.Creating user
 
 	user := models.User{Name: body.Name, Email: body.Email, Password: string(hash)}
 
@@ -53,15 +58,18 @@ func UserSignup(c *gin.Context) {
 
 		return
 	}
-
 	//responds
 
-	c.JSON(http.StatusOK, gin.H{})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "New User Created",
+	})
 
 }
 
+//-------------------------------------------UserLogin-------------------------------------------
+
 func UserLogin(c *gin.Context) {
-	//get the email and password of req body
+	//1.get the email and password of req body
 	var body struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -73,7 +81,7 @@ func UserLogin(c *gin.Context) {
 		return
 	}
 
-	//look up request user
+	//2.look up request user
 	var user models.User
 	initializers.DB.Find(&user, "email= ?", body.Email)
 
@@ -83,7 +91,7 @@ func UserLogin(c *gin.Context) {
 		})
 		return
 	}
-	//compare sent in pass with hash pass
+	//3.compare sent in pass with hash pass
 
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
 
@@ -94,12 +102,12 @@ func UserLogin(c *gin.Context) {
 		return
 	}
 
-	//generate jwt
+	//4.generate jwt
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": user.ID,
 		"exp": time.Now().Add(time.Second * 2 * 30).Unix(),
 	})
-	//Sign and get the complete encoded token as a string useing secrete
+	//5.Sign and get the complete encoded token as a string using secrete
 
 	sc := os.Getenv("SECRET")
 
@@ -113,7 +121,7 @@ func UserLogin(c *gin.Context) {
 		return
 	}
 
-	//sent it backBrototype
+	//6.sent it backBrototype
 
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("Authorization", tokenString, 2*30, "", "", false, true)
@@ -124,6 +132,8 @@ func UserLogin(c *gin.Context) {
 
 }
 
+//--------------------------------------------Function Validate---------------------------------------
+
 func Validate(c *gin.Context) {
 	user, _ := c.Get("user")
 
@@ -133,6 +143,8 @@ func Validate(c *gin.Context) {
 		"massage": user,
 	})
 }
+
+//---------------------------------------------Function UserLogout---------------------------------------------
 
 func UserLogout(c *gin.Context) {
 
@@ -152,41 +164,8 @@ func UserLogout(c *gin.Context) {
 	c.SetCookie("Authorization", tokenString, -1, "", "", false, true)
 
 	c.JSON(http.StatusSeeOther, gin.H{
-		"message": "logouted successfully ",
+		"message": "logOut successfully ",
 	})
 
 	c.Redirect(http.StatusFound, "/")
-}
-
-func EditUser(c *gin.Context) {
-	var body struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "failed to hash password",
-		})
-
-		return
-	}
-
-	user := models.User{Password: string(hash)}
-
-	result := initializers.DB.Model(&user).Where("email=?", body.Email).Update("password", string(hash))
-
-	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "failed to update password",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "successfully changed password",
-	})
-
 }

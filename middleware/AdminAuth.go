@@ -14,17 +14,16 @@ import (
 
 func AdminAuth(c *gin.Context) {
 	fmt.Println("test1")
-	//get the cookie off req
+	//1.get the cookie off req
 	tokenString, err := c.Cookie("Auth")
 
-	
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 			"message": "you are not logged in",
 		})
 		return
 	}
-	//decode/Validate it
+	//2.decode/Validate it
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -35,7 +34,7 @@ func AdminAuth(c *gin.Context) {
 		return []byte(os.Getenv("SECRET")), nil
 	})
 
-	//if error to parse the token
+	//3.if error to parse the token
 	if err != nil {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -43,12 +42,12 @@ func AdminAuth(c *gin.Context) {
 
 	fmt.Println("test3", token)
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		// Check the exp
+		// 4.Check the expire
 		if float64(time.Now().Unix()) > claims["exp"].(float64) {
 			c.AbortWithStatus(http.StatusUnauthorized)
 		}
 		fmt.Println("test4")
-		//find the user with tocken sub
+		//5.find the user with tocken sub
 		var admin models.Admin
 		initializers.DB.First(&admin, claims["sub"])
 		fmt.Println("test5")
